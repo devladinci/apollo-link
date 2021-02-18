@@ -1,6 +1,6 @@
-import { Operation } from 'apollo-link';
-import { print } from 'graphql/language/printer';
-import { InvariantError } from 'ts-invariant';
+import { Operation } from "apollo-link";
+import { print, stripIgnoredCharacters } from "graphql/language/printer";
+import { InvariantError } from "ts-invariant";
 
 /*
  * Http Utilities: shared across links that make http requests
@@ -71,7 +71,7 @@ export interface HttpOptions {
   /**
    * A `fetch`-compatible API to use when making requests.
    */
-  fetch?: WindowOrWorkerGlobalScope['fetch'];
+  fetch?: WindowOrWorkerGlobalScope["fetch"];
 
   /**
    * An object representing values to be sent as headers on the request.
@@ -96,12 +96,12 @@ const defaultHttpOptions: HttpQueryOptions = {
 
 const defaultHeaders = {
   // headers are case insensitive (https://stackoverflow.com/a/5259004)
-  accept: '*/*',
-  'content-type': 'application/json',
+  accept: "*/*",
+  "content-type": "application/json",
 };
 
 const defaultOptions = {
-  method: 'POST',
+  method: "POST",
 };
 
 export const fallbackHttpConfig = {
@@ -113,7 +113,7 @@ export const fallbackHttpConfig = {
 export const throwServerError = (response, result, message) => {
   const error = new Error(message) as ServerError;
 
-  error.name = 'ServerError';
+  error.name = "ServerError";
   error.response = response;
   error.statusCode = response.status;
   error.result = result;
@@ -122,16 +122,18 @@ export const throwServerError = (response, result, message) => {
 };
 
 //TODO: when conditional types come in ts 2.8, operations should be a generic type that extends Operation | Array<Operation>
-export const parseAndCheckHttpResponse = operations => (response: Response) => {
+export const parseAndCheckHttpResponse = (operations) => (
+  response: Response
+) => {
   return (
     response
       .text()
-      .then(bodyText => {
+      .then((bodyText) => {
         try {
           return JSON.parse(bodyText);
         } catch (err) {
           const parseError = err as ServerParseError;
-          parseError.name = 'ServerParseError';
+          parseError.name = "ServerParseError";
           parseError.response = response;
           parseError.statusCode = response.status;
           parseError.bodyText = bodyText;
@@ -145,15 +147,15 @@ export const parseAndCheckHttpResponse = operations => (response: Response) => {
           throwServerError(
             response,
             result,
-            `Response not successful: Received status code ${response.status}`,
+            `Response not successful: Received status code ${response.status}`
           );
         }
         //TODO should really error per response in a Batch based on properties
         //    - could be done in a validation link
         if (
           !Array.isArray(result) &&
-          !result.hasOwnProperty('data') &&
-          !result.hasOwnProperty('errors')
+          !result.hasOwnProperty("data") &&
+          !result.hasOwnProperty("errors")
         ) {
           //Data error
           throwServerError(
@@ -161,9 +163,9 @@ export const parseAndCheckHttpResponse = operations => (response: Response) => {
             result,
             `Server response was missing for query '${
               Array.isArray(operations)
-                ? operations.map(op => op.operationName)
+                ? operations.map((op) => op.operationName)
                 : operations.operationName
-            }'.`,
+            }'.`
           );
         }
         return result;
@@ -171,10 +173,10 @@ export const parseAndCheckHttpResponse = operations => (response: Response) => {
   );
 };
 
-export const checkFetcher = (fetcher: WindowOrWorkerGlobalScope['fetch']) => {
-  if (!fetcher && typeof fetch === 'undefined') {
-    let library: string = 'unfetch';
-    if (typeof window === 'undefined') library = 'node-fetch';
+export const checkFetcher = (fetcher: WindowOrWorkerGlobalScope["fetch"]) => {
+  if (!fetcher && typeof fetch === "undefined") {
+    let library: string = "unfetch";
+    if (typeof window === "undefined") library = "node-fetch";
     throw new InvariantError(`
 fetch is not found globally and no fetcher passed, to fix pass a fetch for
 your environment like https://www.npmjs.com/package/${library}.
@@ -188,7 +190,7 @@ const link = createHttpLink({ uri: '/graphql', fetch: fetch });`);
 };
 
 export const createSignalIfSupported = () => {
-  if (typeof AbortController === 'undefined')
+  if (typeof AbortController === "undefined")
     return { controller: false, signal: false };
 
   const controller = new AbortController();
@@ -212,7 +214,7 @@ export const selectHttpOptionsAndBody = (
    * use the rest of the configs to populate the options
    * configs later in the list will overwrite earlier fields
    */
-  configs.forEach(config => {
+  configs.forEach((config) => {
     options = {
       ...options,
       ...config.options,
@@ -236,7 +238,9 @@ export const selectHttpOptionsAndBody = (
   if (http.includeExtensions) (body as any).extensions = extensions;
 
   // not sending the query (i.e persisted queries)
-  if (http.includeQuery) (body as any).query = print(query);
+  if (http.includeQuery) {
+    (body as any).query = stripIgnoredCharacters(print(query));
+  }
 
   return {
     options,
@@ -250,7 +254,7 @@ export const serializeFetchParameter = (p, label) => {
     serialized = JSON.stringify(p);
   } catch (e) {
     const parseError = new InvariantError(
-      `Network request failed. ${label} is not serializable: ${e.message}`,
+      `Network request failed. ${label} is not serializable: ${e.message}`
     ) as ClientParseError;
     parseError.parseError = e;
     throw parseError;
@@ -261,16 +265,16 @@ export const serializeFetchParameter = (p, label) => {
 //selects "/graphql" by default
 export const selectURI = (
   operation,
-  fallbackURI?: string | ((operation: Operation) => string),
+  fallbackURI?: string | ((operation: Operation) => string)
 ) => {
   const context = operation.getContext();
   const contextURI = context.uri;
 
   if (contextURI) {
     return contextURI;
-  } else if (typeof fallbackURI === 'function') {
+  } else if (typeof fallbackURI === "function") {
     return fallbackURI(operation);
   } else {
-    return (fallbackURI as string) || '/graphql';
+    return (fallbackURI as string) || "/graphql";
   }
 };

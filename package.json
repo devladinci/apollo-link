@@ -1,6 +1,7 @@
 {
   "private": true,
   "license": "MIT",
+  "version": "1.2.14",
   "scripts": {
     "diff": "check-if-folder-contents-changed-in-git-commit-range",
     "postinstall": "lerna exec -- npm install --package-lock=false && lerna run prepare",
